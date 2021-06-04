@@ -1,0 +1,41 @@
+<launch>
+
+    <param name="/use_sim_time" value="false" />
+   
+    <arg name="serial_number" default="null" />
+   
+    <node pkg="tf2_ros" type="static_transform_publisher" name="rs_to_os_tf_broadcaster"  args="0 -0.0203 -0.0254 0 0 0 camera_link os_sensor" /> 
+
+    <include file="$(find ouster_ros)/ouster.launch"> 
+      <arg name="sensor_hostname" value="192.168.3.144" /> 
+      <arg name="udp_dest" value="192.168.3.142" />
+      <arg name="replay" value="false" /> 
+      <arg name="lidar_mode" value="1024x10" />
+      <arg name="metadata" value="" /> 
+      <arg name="viz" value="false" /> 
+      <arg name="image" value="false" /> 
+    </include> 
+
+    <include file="$(find realsense2_camera)/launch/rs_t265.launch"/>
+    <param name="/camera/tracking_module/enable_pose_jumping" type="boolean" value="false" />
+    <param name="/camera/tracking_module/enable_relocalization" type="boolean" value="false" />
+    <param name="/camera/tracking_module/enable_mapping" type="boolean" value="false" />
+    <param name="/camera/realsense2_camera/unite_imu_method" type="str" value="linear_interpolation" />
+
+    <node name="cartographer_node" pkg="cartographer_ros"
+        type="cartographer_node" args="
+          -configuration_directory $(find sc_cartographer)/configuration_files
+          -configuration_basename single_rs_os.lua"
+        output="screen">
+      <remap from="/points2" to="/os_cloud_node/points" />
+      <remap from="/imu" to="/camera/imu" />
+      <remap from="/odom" to="/camera/odom/sample" />
+    </node> 
+
+   <node name="cartographer_occupancy_grid_node" pkg="cartographer_ros"
+      type="cartographer_occupancy_grid_node" args="-resolution 0.05" /> 
+
+    <node name="rviz" pkg="rviz" type="rviz" required="true"
+      args="-d $(find sc_cartographer)/rviz/online3d.rviz" /> 
+
+</launch>
